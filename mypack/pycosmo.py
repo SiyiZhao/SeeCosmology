@@ -10,7 +10,7 @@ plt.rcParams['text.usetex'] = False
 
 cosmo = cosmology.setCosmology('planck15')
 h = cosmo.h
-H0 = cosmo.H0 
+H0 = cosmo.H0 * u.km/u.s/u.Mpc
 OmM, OmL = cosmo.Om0, cosmo.Ode0
 Mpc_per_h = u.def_unit('Mpc/h', u.Mpc / h)
 
@@ -37,10 +37,9 @@ def GrowthRate(z):
 def f(z):
     return GrowthRate(z)
 
-# RSD 
 def x2s(x, vx, z):
     '''input x in cMpc/h, vx in physical peculiar km/s, output s in cMpc/h'''
-    dist = vx *u.km/u.s * (1+z) / cosmo.H(z)
+    dist = vx *u.km/u.s * (1+z) / (cosmo.Hz(z)*u.km/u.s/u.Mpc)
     return x + dist.to(Mpc_per_h).value
 
 def periodic_boundary(szs, boxL):
