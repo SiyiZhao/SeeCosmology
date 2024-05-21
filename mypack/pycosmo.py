@@ -2,6 +2,7 @@ import numpy as np
 from scipy.misc import derivative
 
 import astropy.units as u
+from astropy import constants as const
 from colossus.cosmology import cosmology
 
 import matplotlib.pyplot as plt
@@ -12,6 +13,11 @@ h = cosmo.h
 H0 = cosmo.H0 
 OmM, OmL = cosmo.Om0, cosmo.Ode0
 Mpc_per_h = u.def_unit('Mpc/h', u.Mpc / h)
+
+def z2a(z):
+    return 1/(1+z)
+def a2z(a):
+    return 1/a - 1
 
 # Growth Rate f(z)=dlnD/dlna
 def GrowthRate(z):
