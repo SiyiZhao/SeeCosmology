@@ -1,0 +1,134 @@
+\documentclass{article}
+\usepackage[width=170mm, margin=1in]{geometry} 
+\input{/Users/siyizhao/MyConfig/macros_en.tex}
+\newcommand{\bluebrackets}[1]{\textcolor{blue}{[}#1\textcolor{blue}{]}}
+\newcommand{\sinc}{\mathrm{sinc}}
+\newcommand{\kNyq}{k_{\rm N}}
+
+\title{Mearsuring Power Spectrum}
+\author{Siyi Zhao}
+\date{}
+\begin{document}
+\maketitle
+
+Refers to the Chapter 7 of Donghui Jeong's thesis \citep{Jeong2010diss}.
+
+\tableofcontents
+
+\section*{Notations}
+
+In this article, 
+superscript `g' means grid. 
+
+\section{from simulations}
+
+\subsection{Distribute particles onto the regular grid}
+
+If there are $N_{\rm p}$ particles in a simulation box, the particle number density is 
+\begin{equation}\label{eq:n_p}
+    n_{\rm p}(\vx) = \sum_{i=1}^{N_{\rm p}} \delta^{\rm D}(\vx - \vx_i),
+\end{equation}
+
+In order to apply the FFT, we have to assign the particle number density onto each point in the regular grid, called Particle Assignment Scheme (PAS)\footnote{Or called mass assignment scheme (MAS) in \href{https://github.com/franciscovillaescusa/Pylians3/blob/master/library/MAS_library/MAS_library.pyx}{pylians}. }. 
+To do this we define a \concept{shape function}, $S(\vb{r})$, which describe how the particle mass distribute like a PSF. 
+The three common choice of PAS is 
+\begin{itemize}
+    \item[1.] the Nearest-Grid-Point (NGP): $S_{\rm NGP}(\vb{r})=\delta^{\rm D}(\vb{r})$, $p=1$; 
+    \item[2.] the cloud-in-cell (CIC): $S_{\rm CIC}(\vb{r})=\mathcal{T}_{H}(\vb{r})$, as shown in \refeq{top-hat_H}; $p=2$;
+    \item[3.] the Triangular-Shape-Cloud (TSC) scheme. 
+\end{itemize}
+
+After the particles are distributed to $\vb{r}$, each point in the grid will occupy a value which is the intergral of the `cell' around it, as 
+\begin{equation} \label{eq:density_on_grid_define}
+    n^{\rm g}(\vx^{\rm g}) = \sum_{i=1}^{N_{\rm p}}  \int_{|\vx^{\prime}_{j} - \vx^{\rm g}_{j}| < H/2 } \frac{\dd[3]{x^{\prime}}}{H^3} S(\vx^{\prime} - \vx_{i}), 
+\end{equation}
+Using the top-hat function $\mathcal{T} (x)$ to represent the intergral space, 
+\begin{eqnarray}
+    \mathcal{T} (x) = 
+    \begin{cases}
+        1, & {\rm if} |x| < 1/2, \\
+        1/2, & {\rm if} |x| = 1/2, \\
+        0, & {\rm if~otherwise}. 
+    \end{cases}
+\end{eqnarray}
+Furthermore, 
+normalize the top-hat function as 
+\begin{eqnarray}\label{eq:top-hat_H}
+    \mathcal{T}_{H} (x) \equiv \frac{1}{H} \mathcal{T}\left(\frac{x}{H}\right) = 
+    \begin{cases}
+        1/H, & {\rm if} |x| < H/2, \\
+        1/(2H), & {\rm if} |x| = H/2, \\
+        0, & {\rm if~otherwise}, 
+    \end{cases}
+\end{eqnarray}
+and the 3D top-hat function is  $\mathcal{T}_{H}(\vx) = \prod_{j=1}^{3} \mathcal{T}_{H}(x_{j})$.
+
+Then the \refeq{density_on_grid_define} can be written as
+\begin{equation}\label{eq:distribute_grid}
+    n^{\rm g}(\vx^{\rm g}) = \sum_{i=1}^{N_{\rm p}} \int \dd[3]{x^{\prime}} \mathcal{T}_{H}(\vx^{\prime} - \vx^{\rm g}) S(\vx^{\prime} - \vx_{i}).
+\end{equation}
+
+\subsubsection*{Window function}
+The continuous number density field is $n(\vx)$, 
+the number density in grid is a sampling of $n(\vx)$, we define a \concept{window function} to describe the sampling progress as
+\begin{equation}\label{eq:sampling}
+    n^{\rm g}(\vx^{\rm g}) = \int_{V} \dd[3]{x^{\prime}} n(\vx^{\prime}) W(\vx^{\rm g}- \vx^{\prime}).
+\end{equation}
+The window function maps the continuous field to the grid field. 
+
+Here we assume $n(\vx) = n_{\rm p}(\vx)$ since we are mearsure the power spectrum of the particle distribution. It will introduce some shot noise which will be discussed in (?). 
+
+Put \refeq{n_p} into \refeq{sampling}, and compare with \refeq{distribute_grid}, we have
+\begin{equation}
+    W(\vx^{\rm g}- \vx_{i}) = \int \dd[3]{x^{\prime}} \mathcal{T}_{H}(\vx^{\prime} - \vx^{\rm g}) S(\vx^{\prime} - \vx_{i}).
+\end{equation}
+rewrite as
+\begin{eqnarray}
+    \vx^{\prime\prime} = \vx^{\rm g} - \vx^{\prime}, \quad
+    W(\vb{r}) = \int \dd[3]{x^{\prime\prime}} \mathcal{T}_{H}(\vx^{\prime\prime}) S(\vb{r} - \vx^{\prime\prime}).
+\end{eqnarray}
+or 
+\begin{equation}
+    W = \mathcal{T}_{H} \otimes S.
+\end{equation}
+
+\subsubsection*{to density contranst}
+The density contrast $\delta \equiv n/\bar{n} - 1$ is then
+\begin{equation}
+    \delta^{\rm g}(\vx^{\rm g}) = \int_{V} \dd[3]{x^{\prime}} \delta(\vx^{\prime}) W(\vx^{\rm g}- \vx^{\prime}), 
+\end{equation}
+where we adopt that the window function is normalized as $\int_{V} \dd[3]{x} W(\vx) = 1$.
+
+That is 
+\begin{equation}
+    \delta^{\rm g}(\vx^{\rm g}) = [\delta \otimes W](\vx^{\rm g}).
+\end{equation}
+After Fourier transformation, we have
+\begin{equation}
+    \delta^{\rm g}(\vk^{\rm g}) = \delta(\vk^{\rm g}) W(\vk^{\rm g}).
+\end{equation}
+
+\subsubsection{3D Window functions}
+
+\begin{equation}
+    W(\vb{r}) = W(r_1) W(r_2) W(r_3),
+\end{equation}
+
+\begin{equation}
+    W(\vk) = {\qty[\sinc \qty(\frac{\pi k_1}{2 \kNyq})  \sinc \qty(\frac{\pi k_2}{2 \kNyq})  \sinc \qty(\frac{\pi k_3}{2 \kNyq})]}^{p}, 
+\end{equation}
+where $\sinc(x) = \frac{\sin x}{x}$. 
+
+\subsection{Pk estimate}
+
+\subsubsection*{Direct Sampling}
+
+
+
+\subsection{Deconvolve window function}
+
+\subsection{Subtract shot noise}
+
+\bibliography{refs.bib}
+
+\end{document}
